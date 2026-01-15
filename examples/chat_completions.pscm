@@ -1,0 +1,19 @@
+(define api-key "your-openai-api-key-here")  ; Replace with actual API key
+
+(define request-body (json-stringify (hash ("model" . "gpt-3.5-turbo") ("messages" . (vector (hash ("role" . "user") ("content" . "Hello, how are you?")))) ("max_tokens" . 100))))
+
+(define curl-cmd (string-append "curl -s -X POST https://api.openai.com/v1/chat/completions -H 'Content-Type: application/json' -H " (string-append "'Authorization: Bearer " api-key "'") " -d '" request-body "'"))
+
+(define response-str (shell curl-cmd))
+
+(define response-json (json-parse response-str))
+
+(print "Response:")
+(print response-json)
+
+(if (hash? response-json)
+    (begin
+      (print "Reply:")
+      (print (hash-ref (vector-ref (hash-ref response-json "choices") 0) "message"))
+    )
+    (print "Error parsing JSON"))

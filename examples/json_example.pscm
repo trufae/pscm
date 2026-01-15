@@ -1,0 +1,15 @@
+(define json-str "{\"name\": \"Alice\", \"age\": 30, \"hobbies\": [\"reading\", \"coding\"]}")
+
+(define parsed (json-parse json-str))
+
+(print "Parsed JSON:")
+(print parsed)
+
+(print "Name:")
+(print (hash-ref parsed "name"))
+
+(print "Age:")
+(print (hash-ref parsed "age"))
+
+(print "First hobby:")
+(print (vector-ref (hash-ref parsed "hobbies") 0))

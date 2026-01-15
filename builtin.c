@@ -1,5 +1,6 @@
 #include "vm.h"
 #include "value.h"
+#include "json.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -507,6 +508,125 @@ static value_t *builtin_shell(vm_t *vm, value_t *args) {
     return result;
 }
 
+static value_t *builtin_curl_json(vm_t *vm, value_t *args) {
+    if (value_is_null(args)) {
+        vm_set_error(vm, VERR_ARGS, "curl-json: expected 1 argument");
+        return NULL;
+    }
+    value_t *url = args->as.pair.car;
+    if (!value_is_string(url)) {
+        vm_set_error(vm, VERR_TYPE, "curl-json: expected string URL");
+        return NULL;
+    }
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "curl -s '%s'", url->as.string);
+
+    FILE *fp = popen(cmd, "r");
+    if (!fp) {
+        vm_set_error(vm, VERR_RUNTIME, "curl-json: failed to execute curl");
+        return NULL;
+    }
+
+    char buffer[4096];
+    size_t total_size = 0;
+    size_t capacity = 4096;
+    char *output = malloc(capacity);
+    if (!output) {
+        pclose(fp);
+        vm_set_error(vm, VERR_RUNTIME, "curl-json: memory allocation failed");
+        return NULL;
+    }
+
+    size_t n;
+    while ((n = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+        if (total_size + n >= capacity) {
+            capacity *= 2;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                pclose(fp);
+                vm_set_error(vm, VERR_RUNTIME, "curl-json: memory allocation failed");
+                return NULL;
+            }
+            output = new_output;
+        }
+        memcpy(output + total_size, buffer, n);
+        total_size += n;
+    }
+
+    output[total_size] = '\0';
+    pclose(fp);
+
+    value_t *json_val = json_parse(vm, output);
+    free(output);
+    return json_val;
+}
+
+static value_t *builtin_json_parse(vm_t *vm, value_t *args) {
+    if (value_is_null(args)) {
+        vm_set_error(vm, VERR_ARGS, "json-parse: expected 1 argument");
+        return NULL;
+    }
+    value_t *str = args->as.pair.car;
+    if (!value_is_string(str)) {
+        vm_set_error(vm, VERR_TYPE, "json-parse: expected string");
+        return NULL;
+    }
+    return json_parse(vm, str->as.string);
+}
+
+static value_t *builtin_json_stringify(vm_t *vm, value_t *args) {
+    if (value_is_null(args)) {
+        vm_set_error(vm, VERR_ARGS, "json-stringify: expected 1 argument");
+        return NULL;
+    }
+    value_t *val = args->as.pair.car;
+    return json_stringify(vm, val);
+}
+
+static value_t *builtin_json_select(vm_t *vm, value_t *args) {
+    if (value_is_null(args) || value_is_null(args->as.pair.cdr)) {
+        vm_set_error(vm, VERR_ARGS, "json-select: expected 2 arguments");
+        return NULL;
+    }
+    value_t *obj = args->as.pair.car;
+    value_t *path = args->as.pair.cdr->as.pair.car;
+    return json_select(vm, obj, path);
+}
+
+static value_t *builtin_string_append(vm_t *vm, value_t *args) {
+    size_t total_len = 0;
+    value_t *arg = args;
+    while (!value_is_null(arg)) {
+        value_t *str = arg->as.pair.car;
+        if (!value_is_string(str)) {
+            vm_set_error(vm, VERR_TYPE, "string-append: expected strings");
+            return NULL;
+        }
+        total_len += strlen(str->as.string);
+        arg = arg->as.pair.cdr;
+    }
+
+    char *result = malloc(total_len + 1);
+    if (!result) {
+        vm_set_error(vm, VERR_RUNTIME, "string-append: memory allocation failed");
+        return NULL;
+    }
+
+    result[0] = '\0';
+    arg = args;
+    while (!value_is_null(arg)) {
+        value_t *str = arg->as.pair.car;
+        strcat(result, str->as.string);
+        arg = arg->as.pair.cdr;
+    }
+
+    value_t *val = value_string(vm, result);
+    free(result);
+    return val;
+}
+
 void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "+", builtin_add);
     vm_register_native(vm, "-", builtin_sub);
@@ -534,4 +654,9 @@ void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "vector-set!", builtin_vector_set);
     vm_register_native(vm, "print", builtin_print);
     vm_register_native(vm, "shell", builtin_shell);
+    vm_register_native(vm, "curl-json", builtin_curl_json);
+    vm_register_native(vm, "json-parse", builtin_json_parse);
+    vm_register_native(vm, "json-stringify", builtin_json_stringify);
+    vm_register_native(vm, "json-select", builtin_json_select);
+    vm_register_native(vm, "string-append", builtin_string_append);
 }

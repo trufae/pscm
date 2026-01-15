@@ -89,7 +89,10 @@ int main(int argc, char *argv[]) {
 
         value_t *result;
         int ret = scheme_eval_string(vm, line, &result);
-        if (ret == 0) {
+        if (scheme_has_error(vm)) {
+            printf("Error: %s\n", scheme_error_message(vm));
+            scheme_clear_error(vm);
+        } else {
             // Print result
             char buf[4096];
             if (scheme_to_string_copy(result, buf, sizeof(buf))) {
@@ -97,9 +100,6 @@ int main(int argc, char *argv[]) {
             } else {
                 printf("#<value>\n");
             }
-        } else {
-            printf("Error: %s\n", scheme_error_message(vm));
-            scheme_clear_error(vm);
         }
     }
 
