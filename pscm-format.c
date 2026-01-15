@@ -186,7 +186,11 @@ static char *read_file_contents(const char *filename) {
         return NULL;
     }
 
-    fread(buf, 1, size, f);
+    if (fread(buf, 1, size, f) != (size_t)size) {
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
     buf[size] = '\0';
     fclose(f);
 
@@ -259,7 +263,11 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        fread(input, 1, size, f);
+        if (fread(input, 1, size, f) != (size_t)size) {
+            free(input);
+            fclose(f);
+            return 1;
+        }
         input[size] = '\0';
         fclose(f);
     }
