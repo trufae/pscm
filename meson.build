@@ -4,16 +4,16 @@ project('pscm', 'c',
 
 add_global_arguments('-D_GNU_SOURCE', language: 'c')
 
-inc = include_directories('.')
+inc = include_directories('src')
 
-lib_sources = [
-  'value.c',
-  'vm.c',
-  'reader.c',
-  'builtin.c',
-  'json.c',
-  'api.c'
-]
+lib_sources = files(
+  'src/value.c',
+  'src/vm.c',
+  'src/reader.c',
+  'src/builtin.c',
+  'src/json.c',
+  'src/api.c'
+)
 
 lib = static_library('pscm', lib_sources, include_directories: inc)
 

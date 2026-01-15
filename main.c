@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
         }
 
         value_t *result;
-        int ret = scheme_eval_string(vm, line, &result);
+        scheme_eval_string(vm, line, &result);
         if (scheme_has_error(vm)) {
             printf("Error: %s\n", scheme_error_message(vm));
             scheme_clear_error(vm);
