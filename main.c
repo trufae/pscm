@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
             int ret = scheme_eval_string(vm, code, &result);
             free(code);
 
-            if (ret != 0) {
+            if (ret == 0) {
                 fprintf(stderr, "Error in %s: %s\n", argv[i], scheme_error_message(vm));
                 scheme_clear_error(vm);
                 scheme_destroy(vm);
