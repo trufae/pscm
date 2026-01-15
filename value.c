@@ -265,7 +265,6 @@ value_t *hash_set(vm_t *vm, value_t *hash, value_t *key, value_t *val) {
         size_t old_cap = hash->as.hash.capacity;
         value_t **old_keys = hash->as.hash.keys;
         value_t **old_vals = hash->as.hash.values;
-        size_t old_size = hash->as.hash.size;
 
         size_t new_cap = hash->as.hash.capacity == 0 ? 8 : hash->as.hash.capacity * 2;
         value_t **new_keys = calloc(new_cap, sizeof(value_t *));
