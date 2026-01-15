@@ -1,6 +1,8 @@
 #include "vm.h"
 #include "value.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static value_t *builtin_add(vm_t *vm, value_t *args) {
     uint64_t result = 0;
@@ -453,6 +455,58 @@ static value_t *builtin_print(vm_t *vm, value_t *args) {
     return arg;
 }
 
+static value_t *builtin_shell(vm_t *vm, value_t *args) {
+    if (value_is_null(args)) {
+        vm_set_error(vm, VERR_ARGS, "shell: expected 1 argument");
+        return NULL;
+    }
+    value_t *cmd = args->as.pair.car;
+    if (!value_is_string(cmd)) {
+        vm_set_error(vm, VERR_TYPE, "shell: expected string");
+        return NULL;
+    }
+
+    FILE *fp = popen(cmd->as.string, "r");
+    if (!fp) {
+        vm_set_error(vm, VERR_RUNTIME, "shell: failed to execute command");
+        return NULL;
+    }
+
+    char buffer[4096];
+    size_t total_size = 0;
+    size_t capacity = 4096;
+    char *output = malloc(capacity);
+    if (!output) {
+        pclose(fp);
+        vm_set_error(vm, VERR_RUNTIME, "shell: memory allocation failed");
+        return NULL;
+    }
+
+    size_t n;
+    while ((n = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+        if (total_size + n >= capacity) {
+            capacity *= 2;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                pclose(fp);
+                vm_set_error(vm, VERR_RUNTIME, "shell: memory allocation failed");
+                return NULL;
+            }
+            output = new_output;
+        }
+        memcpy(output + total_size, buffer, n);
+        total_size += n;
+    }
+
+    output[total_size] = '\0';
+    pclose(fp);
+
+    value_t *result = value_string(vm, output);
+    free(output);
+    return result;
+}
+
 void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "+", builtin_add);
     vm_register_native(vm, "-", builtin_sub);
@@ -479,4 +533,5 @@ void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "vector-ref", builtin_vector_ref);
     vm_register_native(vm, "vector-set!", builtin_vector_set);
     vm_register_native(vm, "print", builtin_print);
+    vm_register_native(vm, "shell", builtin_shell);
 }
