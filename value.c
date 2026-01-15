@@ -236,6 +236,10 @@ static size_t hash_find_slot(value_t *hash, value_t *key) {
         for (const char *s = key->as.string; *s; s++) {
             hash_val = hash_val * 31 + (uint8_t)*s;
         }
+    } else if (value_is_symbol(key)) {
+        for (const char *s = key->as.symbol; *s; s++) {
+            hash_val = hash_val * 31 + (uint8_t)*s;
+        }
     } else if (value_is_number(key)) {
         hash_val = key->as.number;
     } else {
@@ -246,8 +250,7 @@ static size_t hash_find_slot(value_t *hash, value_t *key) {
     size_t start_idx = idx;
 
     while (1) {
-        if (idx >= hash->as.hash.size) return (size_t)-1;
-        if (value_equal(hash->as.hash.keys[idx], key)) return idx;
+        if (hash->as.hash.keys[idx] && value_equal(hash->as.hash.keys[idx], key)) return idx;
         if (hash->as.hash.keys[idx] == NULL) return idx;
 
         idx = (idx + 1) % hash->as.hash.capacity;
@@ -259,6 +262,11 @@ value_t *hash_set(vm_t *vm, value_t *hash, value_t *key, value_t *val) {
     if (!value_is_hash(hash)) return NULL;
 
     if (hash->as.hash.size >= hash->as.hash.capacity * 3 / 4) {
+        size_t old_cap = hash->as.hash.capacity;
+        value_t **old_keys = hash->as.hash.keys;
+        value_t **old_vals = hash->as.hash.values;
+        size_t old_size = hash->as.hash.size;
+
         size_t new_cap = hash->as.hash.capacity == 0 ? 8 : hash->as.hash.capacity * 2;
         value_t **new_keys = calloc(new_cap, sizeof(value_t *));
         value_t **new_vals = calloc(new_cap, sizeof(value_t *));
@@ -268,37 +276,41 @@ value_t *hash_set(vm_t *vm, value_t *hash, value_t *key, value_t *val) {
             return NULL;
         }
 
-        for (size_t i = 0; i < hash->as.hash.size; i++) {
-            if (hash->as.hash.keys[i]) {
-                size_t idx = i % new_cap;
-                while (new_keys[idx] != NULL) {
-                    idx = (idx + 1) % new_cap;
-                }
-                new_keys[idx] = hash->as.hash.keys[i];
-                new_vals[idx] = hash->as.hash.values[i];
-            }
-        }
-
-        free(hash->as.hash.keys);
-        free(hash->as.hash.values);
         hash->as.hash.keys = new_keys;
         hash->as.hash.values = new_vals;
         hash->as.hash.capacity = new_cap;
+        hash->as.hash.size = 0;
+
+        for (size_t i = 0; i < old_cap; i++) {
+            if (old_keys[i]) {
+                // reinsert
+                value_t *key = old_keys[i];
+                value_t *val = old_vals[i];
+                size_t slot = hash_find_slot(hash, key);
+                if (slot != (size_t)-1 && hash->as.hash.keys[slot] == NULL) {
+                    hash->as.hash.keys[slot] = key;
+                    hash->as.hash.values[slot] = val;
+                    hash->as.hash.size++;
+                }
+            }
+        }
+
+        free(old_keys);
+        free(old_vals);
     }
 
     size_t slot = hash_find_slot(hash, key);
     if (slot == (size_t)-1) {
-        slot = hash->as.hash.size;
-        if (slot >= hash->as.hash.capacity) return NULL;
-        hash->as.hash.size++;
+        // table full, could resize here, but for now
+        return NULL;
     }
 
-    if (hash->as.hash.keys[slot]) {
-        value_release(vm, hash->as.hash.keys[slot]);
-        value_release(vm, hash->as.hash.values[slot]);
-    } else {
+    if (hash->as.hash.keys[slot] == NULL) {
         hash->as.hash.keys[slot] = key;
         value_retain(key);
+        hash->as.hash.size++;
+    } else {
+        value_release(vm, hash->as.hash.values[slot]);
     }
 
     hash->as.hash.values[slot] = val;

@@ -28,17 +28,15 @@ void vm_destroy(vm_t *vm) {
 
 void vm_set_error(vm_t *vm, verror_t code, const char *fmt, ...) {
     if (!vm) return;
-
-    free(vm->error_message);
     vm->error_code = code;
-
-    va_list args;
-    va_start(args, fmt);
-    int ret = vasprintf(&vm->error_message, fmt, args);
-    if (ret == -1) {
-        vm->error_message = NULL;
+    free(vm->error_message);
+    vm->error_message = malloc(256);
+    if (vm->error_message) {
+        va_list args;
+        va_start(args, fmt);
+        vsnprintf(vm->error_message, 256, fmt, args);
+        va_end(args);
     }
-    va_end(args);
 }
 
 void vm_clear_error(vm_t *vm) {
@@ -125,7 +123,7 @@ value_t *vm_eval(vm_t *vm, value_t *expr, value_t *env) {
         if (value_is_symbol(expr)) {
             value_t *val = vm_env_lookup(vm, env, expr);
             if (!val) {
-                vm_set_error(vm, VERR_UNBOUND, "unbound symbol: %s", expr->as.symbol);
+                vm_set_error(vm, VERR_UNBOUND, "unbound symbol");
                 return NULL;
             }
             return val;

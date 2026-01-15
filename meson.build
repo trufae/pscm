@@ -17,4 +17,4 @@ lib_sources = [
 
 lib = static_library('pscm', lib_sources, include_directories: inc)
 
-executable('repl', 'main.c', link_with: lib, include_directories: inc)
+executable('pscm', 'main.c', link_with: lib, include_directories: inc)

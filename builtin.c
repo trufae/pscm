@@ -424,6 +424,35 @@ static value_t *builtin_vector_set(vm_t *vm, value_t *args) {
     return val;
 }
 
+static value_t *builtin_print(vm_t *vm, value_t *args) {
+    if (value_is_null(args)) {
+        printf("\n");
+        return value_null(vm);
+    }
+
+    value_t *arg = args->as.pair.car;
+
+    if (value_is_null(arg)) {
+        printf("()\n");
+    } else if (value_is_bool(arg)) {
+        printf("%s\n", arg->as.boolean ? "#t" : "#f");
+    } else if (value_is_number(arg)) {
+        if (arg->as.number == (double)arg->as.number) {
+            printf("%llu\n", (unsigned long long)arg->as.number);
+        } else {
+            printf("%g\n", arg->as.floating);
+        }
+    } else if (value_is_string(arg)) {
+        printf("%s\n", arg->as.string);
+    } else if (value_is_symbol(arg)) {
+        printf("%s\n", arg->as.symbol);
+    } else {
+        printf("#<value>\n");
+    }
+
+    return arg;
+}
+
 void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "+", builtin_add);
     vm_register_native(vm, "-", builtin_sub);
@@ -449,4 +478,5 @@ void vm_register_builtins(vm_t *vm) {
     vm_register_native(vm, "hash-ref", builtin_hash_ref);
     vm_register_native(vm, "vector-ref", builtin_vector_ref);
     vm_register_native(vm, "vector-set!", builtin_vector_set);
+    vm_register_native(vm, "print", builtin_print);
 }

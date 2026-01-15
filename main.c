@@ -12,13 +12,11 @@ int main() {
         return 1;
     }
 
-    vm_register_builtins(vm);
-
     char *line = NULL;
     size_t len = 0;
     ssize_t n;
 
-    printf("vibescheme REPL\n");
+    printf("pscm REPL\n");
     printf("Type 'quit' to exit\n");
 
     while (1) {

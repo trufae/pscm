@@ -1,5 +1,5 @@
-#ifndef VIBESCHEME_H
-#define VIBESCHEME_H
+#ifndef PSCM_H
+#define PSCM_H
 
 #include "api.h"
 

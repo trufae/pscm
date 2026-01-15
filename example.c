@@ -1,4 +1,4 @@
-#include "vibescheme.h"
+#include "pscm.h"
 #include <stdio.h>
 
 int main() {
